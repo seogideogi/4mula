@@ -154,7 +154,7 @@ class AMLtoGraph(InMemoryDataset):
 
     def get_node_attr(self, df):
         print("노드 특성 생성 시작")
-        df.fillna(0, inplace=True)
+        df = df.astype(object).fillna(0)
         node_cols = [
             'tran_amt', 'tran_tmrg', 'md_type', 'fnd_type',
             'prev_dps_fraud_cnt', 'prev_wd_fraud_cnt',
