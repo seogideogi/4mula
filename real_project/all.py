@@ -87,51 +87,57 @@ class AMLtoGraph(InMemoryDataset):
         return train_df, val_df, test_df
 
 
-	def sample_data(self, df, verbose: bool = False):
-		print("금액대별 17% 샘플링 (사기 전량 포함 + 정상 일부) 시작")
+    def sample_data(self, df, verbose: bool = False):
+        print("금액대별 17% 샘플링 (정상 중심 + 사기 오버샘플링) 시작")
 
-		# 금액대 구간 설정 (그래프 기준)
-		bins = [0, 1_000, 10_000, 50_000, 100_000, 500_000, 1_000_000, np.inf]
-		labels = ['<1K', '1K-10K', '10K-50K', '50K-100K', '100K-500K', '500K-1M', '>1M']
-		df['amt_bin'] = pd.cut(df['tran_amt'], bins=bins, labels=labels, include_lowest=True)
+        bins = [0, 1_000, 10_000, 50_000, 100_000, 500_000, 1_000_000, np.inf]
+        labels = ['<1K', '1K-10K', '10K-50K', '50K-100K', '100K-500K', '500K-1M', '>1M']
+        df['amt_bin'] = pd.cut(df['tran_amt'], bins=bins, labels=labels, include_lowest=True)
 
-		all_samples = []
+        all_samples = []
 
-		for bin_label in labels:
-			bin_df = df[df['amt_bin'] == bin_label]
-			normal = bin_df[bin_df['ff_sp_ai'] == 0]
-			fraud = bin_df[bin_df['ff_sp_ai'] == 1]
+        for bin_label in labels:
+            bin_df = df[df['amt_bin'] == bin_label]
+            normal = bin_df[bin_df['ff_sp_ai'] == 0]
+            fraud = bin_df[bin_df['ff_sp_ai'] == 1]
 
-			# 사기 거래는 모두 포함
-			fraud_sampled = fraud
+            #정상 거래 샘플링 (17%)
+            n_normal_sample = int(len(normal) * 0.17)
+            if n_normal_sample > 0:
+                normal_sampled = normal.sample(n=n_normal_sample, random_state=42)
+            else:
+                normal_sampled = normal.iloc[0:0]
 
-			# 정상 거래는 17% 또는 사기 거래 수 중 작은 값
-			n_normal_max = int(len(normal) * 0.17)
-			n_target_normal = min(n_normal_max, len(fraud))
+            #사기 거래 복원 샘플링 → 정상과 개수 맞춤
+            if len(normal_sampled) > 0 and len(fraud) > 0:
+                fraud_sampled = resample(
+                    fraud,
+                    replace=True,
+                    n_samples=len(normal_sampled),
+                    random_state=42
+                )
+            else:
+                fraud_sampled = fraud.iloc[0:0]
 
-			if n_target_normal > 0:
-				normal_sampled = normal.sample(n=n_target_normal, random_state=42)
-			else:
-				normal_sampled = normal.iloc[0:0]  # 빈 DataFrame
+            bin_sampled = pd.concat([normal_sampled, fraud_sampled], ignore_index=True)
+            all_samples.append(bin_sampled)
 
-			bin_sampled = pd.concat([normal_sampled, fraud_sampled], ignore_index=True)
-			all_samples.append(bin_sampled)
+            print(f"[{bin_label}] 정상 {len(normal_sampled)} / 사기 {len(fraud_sampled)}")
 
-			print(f"[{bin_label}] 정상 {len(normal_sampled)} / 사기 {len(fraud_sampled)}")
+        df_sampled = pd.concat(all_samples, ignore_index=True).sample(frac=1, random_state=42)
 
-		df_sampled = pd.concat(all_samples, ignore_index=True).sample(frac=1, random_state=42)
+        if verbose:
+            def print_graph_stats(df_part, label=""):
+                G = nx.Graph()
+                for _, row in df_part.iterrows():
+                    G.add_edge(row['wd_fc_ac'], row['dps_fc_ac'], weight=row['tran_amt'])
+                print(f"[{label}] 노드 수: {G.number_of_nodes()}, 엣지 수: {G.number_of_edges()}")
 
-		if verbose:
-			def print_graph_stats(df_part, label=""):
-				G = nx.Graph()
-				for _, row in df_part.iterrows():
-					G.add_edge(row['wd_fc_ac'], row['dps_fc_ac'], weight=row['tran_amt'])
-				print(f"[{label}] 노드 수: {G.number_of_nodes()}, 엣지 수: {G.number_of_edges()}")
+            print_graph_stats(df, "샘플링 전 전체 데이터")
+            print_graph_stats(df_sampled, "샘플링 후 데이터")
 
-			print_graph_stats(df, "샘플링 전 전체 데이터")
-			print_graph_stats(df_sampled, "샘플링 후 데이터")
+        return df_sampled
 
-		return df_sampled
 
 
 
@@ -364,4 +370,4 @@ for epoch in range(30):
         if patience_counter >= patience:
             print("Early stopping triggered.")
             break
-        
+    
