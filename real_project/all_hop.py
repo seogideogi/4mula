@@ -31,7 +31,7 @@ class AMLtoGraph(InMemoryDataset):
         return 'data.pt'
     
     def detect_communities(self, df):
-        print("Ä¿¹Â´ÏÆ¼ Å½Áö (Train ±â¹İ)")
+        print("ì»¤ë®¤ë‹ˆí‹° íƒì§€ (Train ê¸°ë°˜)")
         G = nx.Graph()
         for _, row in df.iterrows():
             G.add_edge(row['wd_fc_ac'], row['dps_fc_ac'], weight=row['tran_amt'])
@@ -45,7 +45,7 @@ class AMLtoGraph(InMemoryDataset):
         return community_map
 
     def add_degree_feature(self, df):
-        print("Degree °è»ê (Train ±â¹İ)")
+        print("Degree ê³„ì‚° (Train ê¸°ë°˜)")
         G = nx.Graph()
         G.add_edges_from(zip(df['wd_fc_ac'], df['dps_fc_ac']))
         degree_dict = dict(G.degree())
@@ -53,11 +53,11 @@ class AMLtoGraph(InMemoryDataset):
 
 
     def preprocess(self, df):
-        print("Preprocessing ½ÃÀÛ")
+        print("Preprocessing ì‹œì‘")
         df.fillna(0, inplace=True)
         df['ff_sp_ai'] = df['ff_sp_ai'].apply(lambda x: 1 if x == 'SP' else 0)
 
-        ## df = df[df["tran_amt"] >= 10000] ---- »ç±âµ¥ÀÌÅÍ ¸ğµÎ Æ÷ÇÔÇÏµµ·Ï º¯°æ. Á¤»óµ¥ÀÌÅÍ¿¡ ´ëÇØ¼­´Â ¾î¶»°Ô ÇØ¾ß ÇÒÁö... ¸ô¶ó¼­ ÀÏ´Ü Æ÷ÇÔ.
+        ## df = df[df["tran_amt"] >= 10000] ---- ì‚¬ê¸°ë°ì´í„° ëª¨ë‘ í¬í•¨í•˜ë„ë¡ ë³€ê²½. ì •ìƒë°ì´í„°ì— ëŒ€í•´ì„œëŠ” ì–´ë–»ê²Œ í•´ì•¼ í• ì§€... ëª°ë¼ì„œ ì¼ë‹¨ í¬í•¨.
         df["tran_dt_raw"] = pd.to_datetime(df["tran_dt"], format="%Y%m%d")
 
                
@@ -69,13 +69,13 @@ class AMLtoGraph(InMemoryDataset):
         print(f"Train: {len(train_df)}, Val: {len(val_df)}, Test: {len(test_df)}")
 
 
-        # Ä¿¹Â´ÏÆ¼/degree °è»êÀº train ±âÁØÀ¸·Î¸¸ ¼öÇà
+        # ì»¤ë®¤ë‹ˆí‹°/degree ê³„ì‚°ì€ train ê¸°ì¤€ìœ¼ë¡œë§Œ ìˆ˜í–‰
         community_map = self.detect_communities(train_df)
         degree_map = self.add_degree_feature(train_df)
         
         for split_df in [train_df, val_df, test_df]:
 
-			#split_df['community'] = split_df['dps_fc_ac'].map(community_map).astype(object).fillna(0).astype(int) ¿¡·¯ ³ª¼­ ¾Æ·¡¿Í °°ÀÌ º¯°æ
+			#split_df['community'] = split_df['dps_fc_ac'].map(community_map).astype(object).fillna(0).astype(int) ì—ëŸ¬ ë‚˜ì„œ ì•„ë˜ì™€ ê°™ì´ ë³€ê²½
 			split_df['community'] = split_df['dps_fc_ac'].map(community_map)
 			split_df['community'] = split_df['community'].fillna(0).astype(int)
 			
@@ -91,7 +91,7 @@ class AMLtoGraph(InMemoryDataset):
 
 
     def sample_data(self, df, verbose: bool = False):
-        print("±İ¾×´ëº° 17% »ùÇÃ¸µ (Á¤»ó Áß½É + »ç±â ¿À¹ö»ùÇÃ¸µ) ½ÃÀÛ")
+        print("ê¸ˆì•¡ëŒ€ë³„ 17% ìƒ˜í”Œë§ (ì •ìƒ ì¤‘ì‹¬ + ì‚¬ê¸° ì˜¤ë²„ìƒ˜í”Œë§) ì‹œì‘")
 
         bins = [0, 1_000, 10_000, 50_000, 100_000, 500_000, 1_000_000, np.inf]
         labels = ['<1K', '1K-10K', '10K-50K', '50K-100K', '100K-500K', '500K-1M', '>1M']
@@ -104,14 +104,14 @@ class AMLtoGraph(InMemoryDataset):
             normal = bin_df[bin_df['ff_sp_ai'] == 0]
             fraud = bin_df[bin_df['ff_sp_ai'] == 1]
 
-            #Á¤»ó °Å·¡ »ùÇÃ¸µ (17%)
+            #ì •ìƒ ê±°ë˜ ìƒ˜í”Œë§ (17%)
             n_normal_sample = int(len(normal) * 0.17)
             if n_normal_sample > 0:
                 normal_sampled = normal.sample(n=n_normal_sample, random_state=42)
             else:
                 normal_sampled = normal.iloc[0:0]
 
-            #»ç±â °Å·¡ º¹¿ø »ùÇÃ¸µ ¡æ Á¤»ó°ú °³¼ö ¸ÂÃã
+            #ì‚¬ê¸° ê±°ë˜ ë³µì› ìƒ˜í”Œë§ â†’ ì •ìƒê³¼ ê°œìˆ˜ ë§ì¶¤
             if len(normal_sampled) > 0 and len(fraud) > 0:
                 fraud_sampled = resample(
                     fraud,
@@ -125,7 +125,7 @@ class AMLtoGraph(InMemoryDataset):
             bin_sampled = pd.concat([normal_sampled, fraud_sampled], ignore_index=True)
             all_samples.append(bin_sampled)
 
-            print(f"[{bin_label}] Á¤»ó {len(normal_sampled)} / »ç±â {len(fraud_sampled)}")
+            print(f"[{bin_label}] ì •ìƒ {len(normal_sampled)} / ì‚¬ê¸° {len(fraud_sampled)}")
 
         df_sampled = pd.concat(all_samples, ignore_index=True).sample(frac=1, random_state=42)
 
@@ -134,10 +134,10 @@ class AMLtoGraph(InMemoryDataset):
                 G = nx.Graph()
                 for _, row in df_part.iterrows():
                     G.add_edge(row['wd_fc_ac'], row['dps_fc_ac'], weight=row['tran_amt'])
-                print(f"[{label}] ³ëµå ¼ö: {G.number_of_nodes()}, ¿§Áö ¼ö: {G.number_of_edges()}")
+                print(f"[{label}] ë…¸ë“œ ìˆ˜: {G.number_of_nodes()}, ì—£ì§€ ìˆ˜: {G.number_of_edges()}")
 
-            print_graph_stats(df, "»ùÇÃ¸µ Àü ÀüÃ¼ µ¥ÀÌÅÍ")
-            print_graph_stats(df_sampled, "»ùÇÃ¸µ ÈÄ µ¥ÀÌÅÍ")
+            print_graph_stats(df, "ìƒ˜í”Œë§ ì „ ì „ì²´ ë°ì´í„°")
+            print_graph_stats(df_sampled, "ìƒ˜í”Œë§ í›„ ë°ì´í„°")
 
         return df_sampled
         # end of def sample_data
@@ -145,27 +145,27 @@ class AMLtoGraph(InMemoryDataset):
         
     def hop_oversample(self, df, hop=1, verbose=False):
         """
-        »ç±â °Å·¡ ³ëµå¸¦ Áß½ÉÀ¸·Î hop ÀÌ¿ô ³ëµå±îÁö Æ÷ÇÔÇÏ¿© ¿À¹ö»ùÇÃ¸µÇÏ´Â ÇÔ¼ö.
-        GNN ÇĞ½À¿ë ¼­ºê±×·¡ÇÁ »ı¼º¿¡ ÀûÇÕ.
+        ì‚¬ê¸° ê±°ë˜ ë…¸ë“œë¥¼ ì¤‘ì‹¬ìœ¼ë¡œ hop ì´ì›ƒ ë…¸ë“œê¹Œì§€ í¬í•¨í•˜ì—¬ ì˜¤ë²„ìƒ˜í”Œë§í•˜ëŠ” í•¨ìˆ˜.
+        GNN í•™ìŠµìš© ì„œë¸Œê·¸ë˜í”„ ìƒì„±ì— ì í•©.
 
         Parameters:
-            df (pd.DataFrame): ÀüÃ¼ °Å·¡ µ¥ÀÌÅÍ
-            hop (int): ¸î hop±îÁö ÀÌ¿ôÀ» Æ÷ÇÔÇÒÁö
-            verbose (bool): ·Î±× Ãâ·Â ¿©ºÎ
+            df (pd.DataFrame): ì „ì²´ ê±°ë˜ ë°ì´í„°
+            hop (int): ëª‡ hopê¹Œì§€ ì´ì›ƒì„ í¬í•¨í• ì§€
+            verbose (bool): ë¡œê·¸ ì¶œë ¥ ì—¬ë¶€
 
         Returns:
-            pd.DataFrame: hop ±â¹İ ¼­ºê±×·¡ÇÁ µ¥ÀÌÅÍÇÁ·¹ÀÓ
+            pd.DataFrame: hop ê¸°ë°˜ ì„œë¸Œê·¸ë˜í”„ ë°ì´í„°í”„ë ˆì„
         """
         import networkx as nx
 
-        # ±×·¡ÇÁ ±¸¼º
+        # ê·¸ë˜í”„ êµ¬ì„±
         G = nx.from_pandas_edgelist(df, source='wd_fc_ac', target='dps_fc_ac', create_using=nx.DiGraph())
 
-        # »ç±â °èÁÂ ±âÁØ
+        # ì‚¬ê¸° ê³„ì¢Œ ê¸°ì¤€
         fraud_df = df[df['ff_sp_ai'] == 1]
         fraud_accounts = set(fraud_df['wd_fc_ac']).union(set(fraud_df['dps_fc_ac']))
 
-        # N-hop ÀÌ¿ô ÃßÃâ
+        # N-hop ì´ì›ƒ ì¶”ì¶œ
         selected_accounts = set()
         for acc in fraud_accounts:
             try:
@@ -174,15 +174,15 @@ class AMLtoGraph(InMemoryDataset):
             except:
                 continue
 
-        # ÀÔÃâ±İ °èÁÂ°¡ hop ÀÌ¿ô ¾È¿¡ Æ÷ÇÔµÈ °Å·¡¸¸ À¯Áö
+        # ì…ì¶œê¸ˆ ê³„ì¢Œê°€ hop ì´ì›ƒ ì•ˆì— í¬í•¨ëœ ê±°ë˜ë§Œ ìœ ì§€
         hop_df = df[df['wd_fc_ac'].isin(selected_accounts) | df['dps_fc_ac'].isin(selected_accounts)].copy()
 
         if verbose:
-            print(f"[HOP-{hop}] Æ÷ÇÔµÈ °èÁÂ ¼ö: {len(selected_accounts)}")
-            print(f"[HOP-{hop}] °Å·¡ ¼ö: {len(hop_df)}")
+            print(f"[HOP-{hop}] í¬í•¨ëœ ê³„ì¢Œ ìˆ˜: {len(selected_accounts)}")
+            print(f"[HOP-{hop}] ê±°ë˜ ìˆ˜: {len(hop_df)}")
             fraud_cnt = hop_df['ff_sp_ai'].sum()
             normal_cnt = len(hop_df) - fraud_cnt
-            print(f"[HOP-{hop}] »ç±â: {fraud_cnt}, Á¤»ó: {normal_cnt}")
+            print(f"[HOP-{hop}] ì‚¬ê¸°: {fraud_cnt}, ì •ìƒ: {normal_cnt}")
 
         return hop_df
         # end of def hop_oversample
@@ -190,24 +190,24 @@ class AMLtoGraph(InMemoryDataset):
 
     def hop_recover_oversample(self, df, hop=2, verbose=False):
         """
-        Hop ±â¹İ »ùÇÃ¸µ + ±İ¾×´ëº° Á¤»ó 17% + »ç±â º¹¿ø»ùÇÃ¸µ ¹æ½Ä
+        Hop ê¸°ë°˜ ìƒ˜í”Œë§ + ê¸ˆì•¡ëŒ€ë³„ ì •ìƒ 17% + ì‚¬ê¸° ë³µì›ìƒ˜í”Œë§ ë°©ì‹
 
         Parameters:
-            df (pd.DataFrame): ÀüÃ¼ °Å·¡ µ¥ÀÌÅÍ
-            hop (int): ¸î hop±îÁö ÀÌ¿ôÀ» Æ÷ÇÔÇÒÁö
-            verbose (bool): ·Î±× Ãâ·Â ¿©ºÎ
+            df (pd.DataFrame): ì „ì²´ ê±°ë˜ ë°ì´í„°
+            hop (int): ëª‡ hopê¹Œì§€ ì´ì›ƒì„ í¬í•¨í• ì§€
+            verbose (bool): ë¡œê·¸ ì¶œë ¥ ì—¬ë¶€
 
         Returns:
-            pd.DataFrame: hop ±â¹İ ¿À¹ö»ùÇÃ¸µ °á°ú µ¥ÀÌÅÍÇÁ·¹ÀÓ
+            pd.DataFrame: hop ê¸°ë°˜ ì˜¤ë²„ìƒ˜í”Œë§ ê²°ê³¼ ë°ì´í„°í”„ë ˆì„
         """
         import networkx as nx
 
-        print(f"[HOP-{hop}] ¼­ºê±×·¡ÇÁ ±â¹İ Recover OverSampling ½ÃÀÛ")
+        print(f"[HOP-{hop}] ì„œë¸Œê·¸ë˜í”„ ê¸°ë°˜ Recover OverSampling ì‹œì‘")
 
-        # 1. ÀüÃ¼ °Å·¡ ±×·¡ÇÁ »ı¼º
+        # 1. ì „ì²´ ê±°ë˜ ê·¸ë˜í”„ ìƒì„±
         G = nx.from_pandas_edgelist(df, source='wd_fc_ac', target='dps_fc_ac', create_using=nx.DiGraph())
 
-        # 2. »ç±â °èÁÂ ±âÁØ hop ÀÌ¿ô ÃßÃâ
+        # 2. ì‚¬ê¸° ê³„ì¢Œ ê¸°ì¤€ hop ì´ì›ƒ ì¶”ì¶œ
         fraud_df_all = df[df['ff_sp_ai'] == 1]
         fraud_accounts = set(fraud_df_all['wd_fc_ac']).union(set(fraud_df_all['dps_fc_ac']))
 
@@ -219,16 +219,16 @@ class AMLtoGraph(InMemoryDataset):
             except:
                 continue
 
-        # 3. hop ÀÌ¿ô ³» °Å·¡ ÇÊÅÍ¸µ
+        # 3. hop ì´ì›ƒ ë‚´ ê±°ë˜ í•„í„°ë§
         hop_df = df[df['wd_fc_ac'].isin(selected_accounts) | df['dps_fc_ac'].isin(selected_accounts)].copy()
-        print(f"[HOP-{hop}] °Å·¡ ¼ö: {len(hop_df)}, °èÁÂ ¼ö: {len(selected_accounts)}")
+        print(f"[HOP-{hop}] ê±°ë˜ ìˆ˜: {len(hop_df)}, ê³„ì¢Œ ìˆ˜: {len(selected_accounts)}")
 
-        # 4. ±İ¾×´ë Á¤ÀÇ
+        # 4. ê¸ˆì•¡ëŒ€ ì •ì˜
         bins = [0, 1_000, 10_000, 50_000, 100_000, 500_000, 1_000_000, np.inf]
         labels = ['<1K', '1K-10K', '10K-50K', '50K-100K', '100K-500K', '500K-1M', '>1M']
         hop_df['amt_bin'] = pd.cut(hop_df['tran_amt'], bins=bins, labels=labels, include_lowest=True)
 
-        # 5. ±İ¾×´ëº° »ùÇÃ¸µ ÁøÇà
+        # 5. ê¸ˆì•¡ëŒ€ë³„ ìƒ˜í”Œë§ ì§„í–‰
         all_samples = []
         for label in labels:
             bin_df = hop_df[hop_df['amt_bin'] == label]
@@ -250,14 +250,14 @@ class AMLtoGraph(InMemoryDataset):
             all_samples.append(bin_sampled)
 
             if verbose:
-                print(f"[{label}] Á¤»ó: {len(normal_sampled)} / »ç±â º¹¿ø: {len(fraud_sampled)} ¡æ K={n_normal_sample}")
+                print(f"[{label}] ì •ìƒ: {len(normal_sampled)} / ì‚¬ê¸° ë³µì›: {len(fraud_sampled)} â†’ K={n_normal_sample}")
 
         hop_df_sampled = pd.concat(all_samples, ignore_index=True).sample(frac=1, random_state=42)
 
         if verbose:
             total_fraud = hop_df_sampled['ff_sp_ai'].sum()
             total_normal = len(hop_df_sampled) - total_fraud
-            print(f"[HOP-{hop}] ÃÖÁ¾ ¡æ »ç±â: {total_fraud}, Á¤»ó: {total_normal}, ºñÀ²: {(total_fraud / len(hop_df_sampled)) * 100:.2f}%")
+            print(f"[HOP-{hop}] ìµœì¢… â†’ ì‚¬ê¸°: {total_fraud}, ì •ìƒ: {total_normal}, ë¹„ìœ¨: {(total_fraud / len(hop_df_sampled)) * 100:.2f}%")
 
         return hop_df_sampled
 
@@ -267,7 +267,7 @@ class AMLtoGraph(InMemoryDataset):
 
 
     def get_edge_df(self, df):
-        print("¿§Áö »ı¼º ½ÃÀÛ")
+        print("ì—£ì§€ ìƒì„± ì‹œì‘")
         df['wd_fc_ac'] = df['wd_fc_ac'].astype('category').cat.codes
         df['dps_fc_ac'] = df['dps_fc_ac'].astype('category').cat.codes
 
@@ -280,56 +280,56 @@ class AMLtoGraph(InMemoryDataset):
         ]
 
         edge_attr = torch.tensor(df[edge_feat_cols].values, dtype=torch.float)
-        print(f"¿§Áö ¼ö: {edge_index.shape[1]}, ¿§Áö Æ¯¼º Â÷¿ø: {edge_attr.shape[1]}")
+        print(f"ì—£ì§€ ìˆ˜: {edge_index.shape[1]}, ì—£ì§€ íŠ¹ì„± ì°¨ì›: {edge_attr.shape[1]}")
         return edge_attr, edge_index
 
     def get_node_attr(self, df):
-        print("³ëµå Æ¯¼º »ı¼º ½ÃÀÛ")
+        print("ë…¸ë“œ íŠ¹ì„± ìƒì„± ì‹œì‘")
         df = df.astype(object).fillna(0)
         node_cols = [
             'tran_amt', 'tran_tmrg', 'md_type', 'fnd_type',
             'prev_dps_fraud_cnt', 'prev_wd_fraud_cnt',
-            'dps_fc_ac_fnd_cnt',  #  count Á¤º¸ ÇÏ³ª À¯Áö
-            'dps_fc_ac_fnd_amt',  #  ÀÔ±İ °èÁÂ ±â¹İ ±İ¾×
+            'dps_fc_ac_fnd_cnt',  #  count ì •ë³´ í•˜ë‚˜ ìœ ì§€
+            'dps_fc_ac_fnd_amt',  #  ì…ê¸ˆ ê³„ì¢Œ ê¸°ë°˜ ê¸ˆì•¡
             'community', 'degree_dps'
         ]
         node_attr = torch.tensor(df[node_cols].values, dtype=torch.float)
         node_label = torch.tensor(df['ff_sp_ai'].values, dtype=torch.float)
-        print(f"³ëµå ¼ö: {node_attr.shape[0]}, ³ëµå Æ¯¼º Â÷¿ø: {node_attr.shape[1]}")
+        print(f"ë…¸ë“œ ìˆ˜: {node_attr.shape[0]}, ë…¸ë“œ íŠ¹ì„± ì°¨ì›: {node_attr.shape[1]}")
         return node_attr, node_label
 
     def process(self):
-        print("µ¥ÀÌÅÍ Ã³¸® ½ÃÀÛ")
-        print(f"CSV ·Îµù °æ·Î: {self.raw_paths[0]}")
+        print("ë°ì´í„° ì²˜ë¦¬ ì‹œì‘")
+        print(f"CSV ë¡œë”© ê²½ë¡œ: {self.raw_paths[0]}")
         df = pd.read_csv(self.raw_paths[0], low_memory=False, dtype={'ff_sp_ai': str})
         train_df, val_df, test_df = self.preprocess(df)
 
         #datasets = {
         #    'train': self.sample_data(train_df),
         #    'val': self.sample_data(val_df),
-        #    #'test': self.sample_data(test_df)  # Å×½ºÆ®µµ fraction
-		#	'test': test_df						# Å×½ºÆ® »ùÇÃ¸µ Á¦¿Ü
+        #    #'test': self.sample_data(test_df)  # í…ŒìŠ¤íŠ¸ë„ fraction
+		#	'test': test_df						# í…ŒìŠ¤íŠ¸ ìƒ˜í”Œë§ ì œì™¸
         #}
         
         datasets = {
             'train': self.hop_recover_oversample(train_df),
-            'val': val_df,                      # °ËÁõ »ùÇÃ¸µ Á¦¿Ü
-			'test': test_df						# Å×½ºÆ® »ùÇÃ¸µ Á¦¿Ü
+            'val': val_df,                      # ê²€ì¦ ìƒ˜í”Œë§ ì œì™¸
+			'test': test_df						# í…ŒìŠ¤íŠ¸ ìƒ˜í”Œë§ ì œì™¸
         }
         
 
-        print("±×·¡ÇÁ º¯È¯ ½ÃÀÛ")
+        print("ê·¸ë˜í”„ ë³€í™˜ ì‹œì‘")
         processed_data = {k: self.create_graph_data(d) for k, d in datasets.items()}
         torch.save((processed_data['train'], torch.tensor([]),
                     processed_data['val'], torch.tensor([]),
                     processed_data['test'], torch.tensor([])), self.processed_paths[0])
-        print("µ¥ÀÌÅÍ ÀúÀå ¿Ï·á!")
+        print("ë°ì´í„° ì €ì¥ ì™„ë£Œ!")
 
     def create_graph_data(self, df):
         edge_attr, edge_index = self.get_edge_df(df)
         node_attr, node_label = self.get_node_attr(df)
 
-        # PyGÀÇ Data °´Ã¼ »ı¼º
+        # PyGì˜ Data ê°ì²´ ìƒì„±
         data = Data(
             x=node_attr,
             edge_index=edge_index,
@@ -399,7 +399,7 @@ import warnings
 warnings.filterwarnings('ignore')
 
 class FocalLoss(torch.nn.Module) :
-    def __init__(self, alpha=0.95, gamma=1, reduction='mean'):
+    def __init__(self, alpha=0.1, gamma=1, reduction='mean'):
         super().__init__()
         self.alpha = alpha
         self.gamma = gamma
@@ -418,7 +418,7 @@ class FocalLoss(torch.nn.Module) :
         else:
             return loss
 
-# --------- Top-K Æò°¡ ÇÔ¼ö ----------
+# --------- Top-K í‰ê°€ í•¨ìˆ˜ ----------
 def precision_at_k(y_true, y_pred_proba, k):
     top_k_idx = np.argsort(y_pred_proba)[::-1][:k]
     return np.sum(y_true[top_k_idx]) / k
@@ -427,7 +427,7 @@ def recall_at_k(y_true, y_pred_proba, k):
     top_k_idx = np.argsort(y_pred_proba)[::-1][:k]
     return np.sum(y_true[top_k_idx]) / np.sum(y_true)
 
-# --------- ÇÏÀÌÆÛÆÄ¶ó¹ÌÅÍ ¼³Á¤ ----------
+# --------- í•˜ì´í¼íŒŒë¼ë¯¸í„° ì„¤ì • ----------
 batch_size = 1024
 lr = 0.01
 topk = 30
@@ -436,12 +436,12 @@ patience = 3
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 print(f" Device: {device}")
 
-# --------- µ¥ÀÌÅÍ ·Îµù ----------
+# --------- ë°ì´í„° ë¡œë”© ----------
 dataset = AMLtoGraph("./lej_dataset_002")
 train_loader = DataLoader([dataset.data_train], batch_size=batch_size, shuffle=True)
 val_loader = DataLoader([dataset.data_val], batch_size=batch_size)
 
-# --------- ¸ğµ¨ ¹× Optimizer ----------
+# --------- ëª¨ë¸ ë° Optimizer ----------
 model = GATImproved(
     in_channels=dataset.data_train.num_node_features,
     edge_dim=dataset.data_train.edge_attr.shape[1],
@@ -449,15 +449,15 @@ model = GATImproved(
 ).to(device)
 
 
-print("\n ¸ğµ¨ ÇĞ½À ½ÃÀÛ")
-loss_fn = FocalLoss(alpha=0.95, gamma=1, reduction='mean').to(device)
+print("\n ëª¨ë¸ í•™ìŠµ ì‹œì‘")
+loss_fn = FocalLoss(alpha=0.1, gamma=1, reduction='mean').to(device)
 optimizer = torch.optim.Adam(model.parameters(), lr=lr, weight_decay=1e-4)
 scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode="max", factor=0.5, patience=2)
 
 best_f1 = 0
 patience_counter = 0
 
-# --------- ÇĞ½À ·çÇÁ ----------
+# --------- í•™ìŠµ ë£¨í”„ ----------
 for epoch in range(30):
     model.train()
     total_loss = 0
@@ -470,7 +470,7 @@ for epoch in range(30):
         optimizer.step()
         total_loss += loss.item()
 
-    # --------- °ËÁõ ----------
+    # --------- ê²€ì¦ ----------
     model.eval()
     preds, labels = [], []
     with torch.no_grad():
