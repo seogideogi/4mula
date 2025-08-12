@@ -50,6 +50,12 @@ df['dps_fc_ac'] = df['dps_fc_ac'].astype('category')
 df['md_type'] = df['md_type'].astype('category')
 df['fnd_type'] = df['fnd_type'].astype('category')
 
+# month 분리 - 훈련, 검증, 테스트 데이터로 분리할 때 사용
+df['month'] = df['tran_dt'].dt.month
+
+# 날짜를 초단위로 변환(이후 정규화진행)
+df['tran_dt_seconds'] = df['tran_dt'].astype('int64') // 10**9
+
 ## 10000원 이상 금액 적용 ##
 df_all = df.copy()
 df = df[df['tran_amt'] >= 10000]
