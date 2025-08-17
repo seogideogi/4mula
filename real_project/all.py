@@ -88,7 +88,7 @@ class AMLtoGraph(InMemoryDataset):
 
 
     def sample_data(self, df, verbose: bool = False):
-        print("금액대별 17% 샘플링 (정상 중심 + 사기 오버샘플링) 시작")
+        print("금액대별 1% 샘플링 (정상 중심 + 사기 오버샘플링) 시작")
 
         bins = [0, 1_000, 10_000, 50_000, 100_000, 500_000, 1_000_000, np.inf]
         labels = ['<1K', '1K-10K', '10K-50K', '50K-100K', '100K-500K', '500K-1M', '>1M']
@@ -101,8 +101,8 @@ class AMLtoGraph(InMemoryDataset):
             normal = bin_df[bin_df['ff_sp_ai'] == 0]
             fraud = bin_df[bin_df['ff_sp_ai'] == 1]
 
-            #정상 거래 샘플링 (17%)
-            n_normal_sample = int(len(normal) * 0.17)
+            #정상 거래 샘플링 (1%)
+            n_normal_sample = int(len(normal) * 0.01)
             if n_normal_sample > 0:
                 normal_sampled = normal.sample(n=n_normal_sample, random_state=42)
             else:
@@ -282,18 +282,40 @@ class FocalLoss(torch.nn.Module) :
 
 # --------- Top-K 평가 함수 ----------
 def precision_at_k(y_true, y_pred_proba, k):
+    """Precision@K 계산"""
     top_k_idx = np.argsort(y_pred_proba)[::-1][:k]
     return np.sum(y_true[top_k_idx]) / k
 
 def recall_at_k(y_true, y_pred_proba, k):
+    """Recall@K 계산"""
     top_k_idx = np.argsort(y_pred_proba)[::-1][:k]
     return np.sum(y_true[top_k_idx]) / np.sum(y_true)
+
+def threshold_at_k(y_true, y_pred_proba, k):
+    """Threshold@K 계산 - 상위 K번째 샘플의 확률값 반환"""
+    top_k_idx = np.argsort(y_pred_proba)[::-1][:k]
+    threshold_index = top_k_idx[-1]  # K번째 인덱스
+    threshold = y_pred_proba[threshold_index]
+    return threshold
+
+def f1_score_at_k(y_true, y_pred_proba, k):
+    """F1-Score@K 계산"""
+    precision_k = precision_at_k(y_true, y_pred_proba, k)
+    recall_k = recall_at_k(y_true, y_pred_proba, k)
+    
+    if precision_k + recall_k == 0:
+        return 0
+    
+    f1_k = 2 * (precision_k * recall_k) / (precision_k + recall_k)
+    return f1_k
 
 # --------- 하이퍼파라미터 설정 ----------
 batch_size = 1024
 lr = 0.01
-topk = 30
+epoch_val = 30
 patience = 3
+
+k = 150
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 print(f" Device: {device}")
@@ -310,7 +332,6 @@ model = GATImproved(
     out_channels=1
 ).to(device)
 
-
 print("\n 모델 학습 시작")
 loss_fn = FocalLoss(alpha=0.95, gamma=1, reduction='mean').to(device)
 optimizer = torch.optim.Adam(model.parameters(), lr=lr, weight_decay=1e-4)
@@ -320,7 +341,7 @@ best_f1 = 0
 patience_counter = 0
 
 # --------- 학습 루프 ----------
-for epoch in range(30):
+for epoch in range(epoch_val):
     model.train()
     total_loss = 0
     for data in train_loader:
@@ -346,16 +367,23 @@ for epoch in range(30):
     labels = np.array(labels)
     bin_preds = (preds > 0.5).astype(int)
 
-
+    # 기본 이진 분류 지표
     f1 = f1_score(labels, bin_preds)
     precision = precision_score(labels, bin_preds)
     recall = recall_score(labels, bin_preds)
     roc = roc_auc_score(labels, preds)
 
+    # Top-K 지표들
+    precision_k = precision_at_k(labels, preds, k)
+    recall_k = recall_at_k(labels, preds, k)
+    threshold_k = threshold_at_k(labels, preds, k)
+    f1_k = f1_score_at_k(labels, preds, k)
+
     scheduler.step(f1)
 
     print(f"Epoch {epoch:02d} | Loss: {total_loss:.4f}")
-    print(f"[Val] F1: {f1:.4f}, Precision: {precision:.4f}, Recall: {recall:.4f}, ROC-AUC: {roc:.4f}")
+    print(f"bnry values - Precision: {precision:.4f}, Recall: {recall:.4f}, F1: {f1:.4f}, ROC-AUC: {roc:.4f}")
+    print(f"topK values - Precision@{k}: {precision_k:.4f}, Recall@{k}: {recall_k:.4f}, F1@{k}: {f1_k:.4f}, Threshold@{k}: {threshold_k:.4f}")
 
     if f1 > best_f1:
         best_f1 = f1
@@ -370,4 +398,4 @@ for epoch in range(30):
         if patience_counter >= patience:
             print("Early stopping triggered.")
             break
-    
+            
