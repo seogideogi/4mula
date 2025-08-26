@@ -46,6 +46,7 @@ class AMLtoGraph(InMemoryDataset):
         G = nx.Graph()
         G.add_edges_from(zip(df['wd_fc_ac'], df['dps_fc_ac']))
         degree_dict = dict(G.degree())
+        
         return degree_dict
 
 
