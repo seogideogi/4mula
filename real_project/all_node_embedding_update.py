@@ -31,7 +31,7 @@ class AMLtoGraph(InMemoryDataset):
         return 'data.pt'
     
     def detect_communities(self, df):
-        print("Ä¿¹Â´ÏÆ¼ Å½Áö (Train ±â¹İ)")
+        print("ì»¤ë®¤ë‹ˆí‹° íƒì§€ (Train ê¸°ë°˜)")
         G = nx.Graph()
         for _, row in df.iterrows():
             G.add_edge(row['wd_fc_ac'], row['dps_fc_ac'], weight=row['tran_amt'])
@@ -45,7 +45,7 @@ class AMLtoGraph(InMemoryDataset):
         return community_map
 
     def add_degree_feature(self, df):
-        print("Degree °è»ê (Train ±â¹İ)")
+        print("Degree ê³„ì‚° (Train ê¸°ë°˜)")
         G = nx.Graph()
         G.add_edges_from(zip(df['wd_fc_ac'], df['dps_fc_ac']))
         degree_dict = dict(G.degree())
@@ -53,7 +53,7 @@ class AMLtoGraph(InMemoryDataset):
         return degree_dict
 
     def preprocess(self, df):
-        print("Preprocessing ½ÃÀÛ")
+        print("Preprocessing ì‹œì‘")
         df.fillna(0, inplace=True)
         df['ff_sp_ai'] = df['ff_sp_ai'].apply(lambda x: 1 if x == 'SP' else 0)
 
@@ -66,7 +66,7 @@ class AMLtoGraph(InMemoryDataset):
 
         print(f"Train: {len(train_df)}, Val: {len(val_df)}, Test: {len(test_df)}")
 
-        # Ä¿¹Â´ÏÆ¼/degree °è»êÀº train ±âÁØÀ¸·Î¸¸ ¼öÇà
+        # ì»¤ë®¤ë‹ˆí‹°/degree ê³„ì‚°ì€ train ê¸°ì¤€ìœ¼ë¡œë§Œ ìˆ˜í–‰
         community_map = self.detect_communities(train_df)
         degree_map = self.add_degree_feature(train_df)
         
@@ -85,7 +85,7 @@ class AMLtoGraph(InMemoryDataset):
         return train_df, val_df, test_df
 
     def sample_data(self, df, verbose: bool = False):
-        print("±İ¾×´ëº° 1% »ùÇÃ¸µ (Á¤»ó Áß½É + »ç±â ¿À¹ö»ùÇÃ¸µ) ½ÃÀÛ")
+        print("ê¸ˆì•¡ëŒ€ë³„ 1% ìƒ˜í”Œë§ (ì •ìƒ ì¤‘ì‹¬ + ì‚¬ê¸° ì˜¤ë²„ìƒ˜í”Œë§) ì‹œì‘")
 
         bins = [0, 1_000, 10_000, 50_000, 100_000, 500_000, 1_000_000, np.inf]
         labels = ['<1K', '1K-10K', '10K-50K', '50K-100K', '100K-500K', '500K-1M', '>1M']
@@ -98,14 +98,14 @@ class AMLtoGraph(InMemoryDataset):
             normal = bin_df[bin_df['ff_sp_ai'] == 0]
             fraud = bin_df[bin_df['ff_sp_ai'] == 1]
 
-            #Á¤»ó °Å·¡ »ùÇÃ¸µ (1%)
+            #ì •ìƒ ê±°ë˜ ìƒ˜í”Œë§ (1%)
             n_normal_sample = int(len(normal) * 0.01)
             if n_normal_sample > 0:
                 normal_sampled = normal.sample(n=n_normal_sample, random_state=42)
             else:
                 normal_sampled = normal.iloc[0:0]
 
-            #»ç±â °Å·¡ º¹¿ø »ùÇÃ¸µ ¡æ Á¤»ó°ú °³¼ö ¸ÂÃã
+            #ì‚¬ê¸° ê±°ë˜ ë³µì› ìƒ˜í”Œë§ â†’ ì •ìƒê³¼ ê°œìˆ˜ ë§ì¶¤
             if len(normal_sampled) > 0 and len(fraud) > 0:
                 fraud_sampled = resample(
                     fraud,
@@ -119,7 +119,7 @@ class AMLtoGraph(InMemoryDataset):
             bin_sampled = pd.concat([normal_sampled, fraud_sampled], ignore_index=True)
             all_samples.append(bin_sampled)
 
-            print(f"[{bin_label}] Á¤»ó {len(normal_sampled)} / »ç±â {len(fraud_sampled)}")
+            print(f"[{bin_label}] ì •ìƒ {len(normal_sampled)} / ì‚¬ê¸° {len(fraud_sampled)}")
 
         df_sampled = pd.concat(all_samples, ignore_index=True).sample(frac=1, random_state=42)
 
@@ -128,22 +128,22 @@ class AMLtoGraph(InMemoryDataset):
                 G = nx.Graph()
                 for _, row in df_part.iterrows():
                     G.add_edge(row['wd_fc_ac'], row['dps_fc_ac'], weight=row['tran_amt'])
-                print(f"[{label}] ³ëµå ¼ö: {G.number_of_nodes()}, ¿§Áö ¼ö: {G.number_of_edges()}")
+                print(f"[{label}] ë…¸ë“œ ìˆ˜: {G.number_of_nodes()}, ì—£ì§€ ìˆ˜: {G.number_of_edges()}")
 
-            print_graph_stats(df, "»ùÇÃ¸µ Àü ÀüÃ¼ µ¥ÀÌÅÍ")
-            print_graph_stats(df_sampled, "»ùÇÃ¸µ ÈÄ µ¥ÀÌÅÍ")
+            print_graph_stats(df, "ìƒ˜í”Œë§ ì „ ì „ì²´ ë°ì´í„°")
+            print_graph_stats(df_sampled, "ìƒ˜í”Œë§ í›„ ë°ì´í„°")
 
         return df_sampled
 
     def create_account_mapping_fast(self, df):
-        """º¤ÅÍÈ­ ¿¬»êÀ¸·Î ºü¸¥ °èÁÂ Æ¯¼º »ı¼º"""
-        print("°èÁÂ ¸ÅÇÎ ¹× ³ëµå Æ¯¼º »ı¼º (ÃÖÀûÈ­)")
+        """ë²¡í„°í™” ì—°ì‚°ìœ¼ë¡œ ë¹ ë¥¸ ê³„ì¢Œ íŠ¹ì„± ìƒì„±"""
+        print("ê³„ì¢Œ ë§¤í•‘ ë° ë…¸ë“œ íŠ¹ì„± ìƒì„± (ìµœì í™”)")
         
-        # ¸ğµç °èÁÂ ID ¼öÁı
+        # ëª¨ë“  ê³„ì¢Œ ID ìˆ˜ì§‘
         all_accounts = pd.concat([df['wd_fc_ac'], df['dps_fc_ac']]).unique()
         account_to_idx = {acc: idx for idx, acc in enumerate(all_accounts)}
         
-        # º¤ÅÍÈ­ Áı°è - Ãâ±İ°èÁÂº°
+        # ë²¡í„°í™” ì§‘ê³„ - ì¶œê¸ˆê³„ì¢Œë³„
         wd_agg = df.groupby('wd_fc_ac').agg({
             'tran_amt': ['count', 'mean', 'sum'],
             'tran_dt': 'max',
@@ -152,7 +152,7 @@ class AMLtoGraph(InMemoryDataset):
         }).fillna(0)
         wd_agg.columns = ['wd_count', 'wd_avg_amt', 'wd_total_amt', 'wd_last_dt', 'wd_community', 'wd_degree']
         
-        # º¤ÅÍÈ­ Áı°è - ÀÔ±İ°èÁÂº°  
+        # ë²¡í„°í™” ì§‘ê³„ - ì…ê¸ˆê³„ì¢Œë³„  
         dps_agg = df.groupby('dps_fc_ac').agg({
             'tran_amt': ['count', 'mean', 'sum'],
             'tran_dt': 'max',
@@ -161,35 +161,35 @@ class AMLtoGraph(InMemoryDataset):
         }).fillna(0)
         dps_agg.columns = ['dps_count', 'dps_avg_amt', 'dps_total_amt', 'dps_last_dt', 'dps_community', 'dps_degree']
         
-        # °èÁÂº° Æ¯¼º º¤ÅÍ »ı¼º
+        # ê³„ì¢Œë³„ íŠ¹ì„± ë²¡í„° ìƒì„±
         account_features = []
         for acc in all_accounts:
-            # Ãâ±İ Á¤º¸
+            # ì¶œê¸ˆ ì •ë³´
             if acc in wd_agg.index:
                 wd_info = wd_agg.loc[acc].values
             else:
                 wd_info = [0, 0, 0, 0, 0, 0]
                 
-            # ÀÔ±İ Á¤º¸  
+            # ì…ê¸ˆ ì •ë³´  
             if acc in dps_agg.index:
                 dps_info = dps_agg.loc[acc].values
             else:
                 dps_info = [0, 0, 0, 0, 0, 0]
             
-            # ÀüÃ¼ °Å·¡ ¼ö
+            # ì „ì²´ ê±°ë˜ ìˆ˜
             total_txns = wd_info[0] + dps_info[0]
             
             features = [
-                total_txns,        # ÃÑ °Å·¡ ¼ö
-                wd_info[0],        # Ãâ±İ °Å·¡ ¼ö
-                dps_info[0],       # ÀÔ±İ °Å·¡ ¼ö
-                wd_info[1],        # Ãâ±İ Æò±Õ ±İ¾×
-                dps_info[1],       # ÀÔ±İ Æò±Õ ±İ¾×
-                wd_info[2],        # Ãâ±İ ÃÑ ±İ¾×
-                dps_info[2],       # ÀÔ±İ ÃÑ ±İ¾×
-                max(wd_info[3], dps_info[3]),  # ÃÖ±Ù °Å·¡ÀÏ
-                max(wd_info[4], dps_info[4]),  # Ä¿¹Â´ÏÆ¼ (´õ Å« °ª)
-                max(wd_info[5], dps_info[5])   # degree (´õ Å« °ª)
+                total_txns,        # ì´ ê±°ë˜ ìˆ˜
+                wd_info[0],        # ì¶œê¸ˆ ê±°ë˜ ìˆ˜
+                dps_info[0],       # ì…ê¸ˆ ê±°ë˜ ìˆ˜
+                wd_info[1],        # ì¶œê¸ˆ í‰ê·  ê¸ˆì•¡
+                dps_info[1],       # ì…ê¸ˆ í‰ê·  ê¸ˆì•¡
+                wd_info[2],        # ì¶œê¸ˆ ì´ ê¸ˆì•¡
+                dps_info[2],       # ì…ê¸ˆ ì´ ê¸ˆì•¡
+                max(wd_info[3], dps_info[3]),  # ìµœê·¼ ê±°ë˜ì¼
+                max(wd_info[4], dps_info[4]),  # ì»¤ë®¤ë‹ˆí‹° (ë” í° ê°’)
+                max(wd_info[5], dps_info[5])   # degree (ë” í° ê°’)
             ]
             
             account_features.append(features)
@@ -197,60 +197,60 @@ class AMLtoGraph(InMemoryDataset):
         account_features = np.array(account_features, dtype=np.float32)
         account_features = np.nan_to_num(account_features, 0)
         
-        print(f"»ı¼ºµÈ ³ëµå ¼ö: {len(all_accounts)}, ³ëµå Æ¯¼º Â÷¿ø: {account_features.shape[1]}")
+        print(f"ìƒì„±ëœ ë…¸ë“œ ìˆ˜: {len(all_accounts)}, ë…¸ë“œ íŠ¹ì„± ì°¨ì›: {account_features.shape[1]}")
         
         return account_to_idx, torch.tensor(account_features, dtype=torch.float)
 
     def get_edge_data(self, df, account_to_idx):
-        """¿§Áö ÀÎµ¦½º, ¿§Áö Æ¯¼º, ¿§Áö ¶óº§ »ı¼º"""
-        print("¿§Áö µ¥ÀÌÅÍ »ı¼º")
+        """ì—£ì§€ ì¸ë±ìŠ¤, ì—£ì§€ íŠ¹ì„±, ì—£ì§€ ë¼ë²¨ ìƒì„±"""
+        print("ì—£ì§€ ë°ì´í„° ìƒì„±")
         
-        # º¤ÅÍÈ­ ¸ÅÇÎ - pandas mapÀÌ list comprehensionº¸´Ù ºü¸§
+        # ë²¡í„°í™” ë§¤í•‘ - pandas mapì´ list comprehensionë³´ë‹¤ ë¹ ë¦„
         src_nodes = df['wd_fc_ac'].map(account_to_idx).values
         dst_nodes = df['dps_fc_ac'].map(account_to_idx).values
         
         edge_index = torch.tensor([src_nodes, dst_nodes], dtype=torch.long)
         
-        # ¿§Áö Æ¯¼º - ÇÊ¼ö ÄÃ·³¸¸ »ç¿ëÇØ¼­ ¸Ş¸ğ¸® Àı¾à
+        # ì—£ì§€ íŠ¹ì„± - í•„ìˆ˜ ì»¬ëŸ¼ë§Œ ì‚¬ìš©í•´ì„œ ë©”ëª¨ë¦¬ ì ˆì•½
         edge_feat_cols = [
             'tran_amt', 'tran_dt', 'tran_tmrg',
             'dps_fc_ac_fnd_amt', 'dps_fc_ac_fnd_cnt', 
-            'wd_fc_ac_fnd_amt', 'wd_fc_ac_fnd_cnt'  # ÀÏºÎ ÄÃ·³ Á¦°Å
+            'wd_fc_ac_fnd_amt', 'wd_fc_ac_fnd_cnt'  # ì¼ë¶€ ì»¬ëŸ¼ ì œê±°
         ]
         
         edge_attr = torch.tensor(df[edge_feat_cols].values, dtype=torch.float)
         edge_labels = torch.tensor(df['ff_sp_ai'].values, dtype=torch.float)
         
-        print(f"¿§Áö ¼ö: {edge_index.shape[1]}, ¿§Áö Æ¯¼º Â÷¿ø: {edge_attr.shape[1]}")
+        print(f"ì—£ì§€ ìˆ˜: {edge_index.shape[1]}, ì—£ì§€ íŠ¹ì„± ì°¨ì›: {edge_attr.shape[1]}")
         
         return edge_index, edge_attr, edge_labels
 
     def process(self):
-        print("µ¥ÀÌÅÍ Ã³¸® ½ÃÀÛ")
-        print(f"CSV ·Îµù °æ·Î: {self.raw_paths[0]}")
+        print("ë°ì´í„° ì²˜ë¦¬ ì‹œì‘")
+        print(f"CSV ë¡œë”© ê²½ë¡œ: {self.raw_paths[0]}")
         df = pd.read_csv(self.raw_paths[0], low_memory=False, dtype={'ff_sp_ai': str})
         train_df, val_df, test_df = self.preprocess(df)
 
         datasets = {
             'train': self.sample_data(train_df),
             'val': self.sample_data(val_df),
-            'test': test_df  # Å×½ºÆ® »ùÇÃ¸µ Á¦¿Ü
+            'test': test_df  # í…ŒìŠ¤íŠ¸ ìƒ˜í”Œë§ ì œì™¸
         }
 
-        print("±×·¡ÇÁ º¯È¯ ½ÃÀÛ")
+        print("ê·¸ë˜í”„ ë³€í™˜ ì‹œì‘")
         processed_data = {}
         
-        # Train ±âÁØÀ¸·Î °èÁÂ ¸ÅÇÎ »ı¼º (ÃÖÀûÈ­µÈ ¹öÀü)
+        # Train ê¸°ì¤€ìœ¼ë¡œ ê³„ì¢Œ ë§¤í•‘ ìƒì„± (ìµœì í™”ëœ ë²„ì „)
         train_account_to_idx, train_node_features = self.create_account_mapping_fast(datasets['train'])
         
         for split_name, split_df in datasets.items():
-            print(f"\n{split_name} µ¥ÀÌÅÍ Ã³¸® Áß...")
+            print(f"\n{split_name} ë°ì´í„° ì²˜ë¦¬ ì¤‘...")
             
             if split_name == 'train':
                 account_to_idx = train_account_to_idx
                 node_features = train_node_features
             else:
-                # ºü¸¥ ÇÊÅÍ¸µ - isin »ç¿ë
+                # ë¹ ë¥¸ í•„í„°ë§ - isin ì‚¬ìš©
                 valid_mask = (split_df['wd_fc_ac'].isin(train_account_to_idx.keys()) & 
                              split_df['dps_fc_ac'].isin(train_account_to_idx.keys()))
                 split_df = split_df[valid_mask].reset_index(drop=True)
@@ -258,11 +258,11 @@ class AMLtoGraph(InMemoryDataset):
                 account_to_idx = train_account_to_idx
                 node_features = train_node_features
                 
-                print(f"ÇÊÅÍ¸µ ÈÄ {split_name} °Å·¡ ¼ö: {len(split_df)}")
+                print(f"í•„í„°ë§ í›„ {split_name} ê±°ë˜ ìˆ˜: {len(split_df)}")
             
             edge_index, edge_attr, edge_labels = self.get_edge_data(split_df, account_to_idx)
             
-            # PyG Data °´Ã¼ »ı¼º
+            # PyG Data ê°ì²´ ìƒì„±
             data = Data(
                 x=node_features,
                 edge_index=edge_index,
@@ -272,11 +272,11 @@ class AMLtoGraph(InMemoryDataset):
             
             processed_data[split_name] = data
         
-        # ÀúÀå
+        # ì €ì¥
         torch.save((processed_data['train'], torch.tensor([]),
                    processed_data['val'], torch.tensor([]),
                    processed_data['test'], torch.tensor([])), self.processed_paths[0])
-        print("µ¥ÀÌÅÍ ÀúÀå ¿Ï·á!")
+        print("ë°ì´í„° ì €ì¥ ì™„ë£Œ!")
 
     def create_graph_data(self, df):
         """Deprecated"""
@@ -293,16 +293,16 @@ import warnings
 warnings.filterwarnings('ignore')
 
 class EdgeGATOptimized(nn.Module):
-    def __init__(self, node_feat_dim, edge_feat_dim, hidden_channels=64, heads=4):  # hidden Ãà¼Ò
+    def __init__(self, node_feat_dim, edge_feat_dim, hidden_channels=64, heads=4):  # hidden ì¶•ì†Œ
         super().__init__()
         
-        # ³ëµå Æ¯¼ºÀ» hidden dimensionÀ¸·Î º¯È¯
+        # ë…¸ë“œ íŠ¹ì„±ì„ hidden dimensionìœ¼ë¡œ ë³€í™˜
         self.node_in = Linear(node_feat_dim, hidden_channels)
         
         # GAT layer 1: multi-head attention
         self.gat1 = GATv2Conv(
             hidden_channels, hidden_channels, 
-            heads=heads, dropout=0.2,  # dropout °¨¼Ò
+            heads=heads, dropout=0.2,  # dropout ê°ì†Œ
             edge_dim=edge_feat_dim, 
             concat=True
         )
@@ -319,20 +319,20 @@ class EdgeGATOptimized(nn.Module):
         self.norm1 = nn.BatchNorm1d(hidden_channels * heads)
         self.norm2 = nn.BatchNorm1d(hidden_channels)
         
-        # °£´ÜÇÑ MLP head (2ÃşÀ¸·Î Ãà¼Ò)
+        # ê°„ë‹¨í•œ MLP head (2ì¸µìœ¼ë¡œ ì¶•ì†Œ)
         self.edge_mlp = nn.Sequential(
             nn.Linear(hidden_channels * 2 + edge_feat_dim, hidden_channels),
-            nn.ReLU(inplace=True),  # inplace ¿¬»êÀ¸·Î ¸Ş¸ğ¸® Àı¾à
+            nn.ReLU(inplace=True),  # inplace ì—°ì‚°ìœ¼ë¡œ ë©”ëª¨ë¦¬ ì ˆì•½
             nn.Dropout(0.2),
             nn.Linear(hidden_channels, 1)
         )
         
     def forward(self, x, edge_index, edge_attr):
-        # ³ëµå Æ¯¼º ÃÊ±â º¯È¯
+        # ë…¸ë“œ íŠ¹ì„± ì´ˆê¸° ë³€í™˜
         x = F.relu(self.node_in(x), inplace=True)
         x = F.dropout(x, p=0.2, training=self.training)
         
-        # GAT layer 1 (residual connection Á¦°Å·Î ¼Óµµ Çâ»ó)
+        # GAT layer 1 (residual connection ì œê±°ë¡œ ì†ë„ í–¥ìƒ)
         h1 = self.gat1(x, edge_index, edge_attr)
         h1 = F.relu(self.norm1(h1), inplace=True)
         h1 = F.dropout(h1, p=0.2, training=self.training)
@@ -341,22 +341,22 @@ class EdgeGATOptimized(nn.Module):
         h2 = self.gat2(h1, edge_index, edge_attr)
         h2 = F.relu(self.norm2(h2), inplace=True)
         
-        # ¿§Áöº° ½ºÄÚ¾î¸µ (ÃÖÀûÈ­µÈ indexing)
+        # ì—£ì§€ë³„ ìŠ¤ì½”ì–´ë§ (ìµœì í™”ëœ indexing)
         src_nodes, dst_nodes = edge_index
         h_src = h2[src_nodes]
         h_dst = h2[dst_nodes]
         
-        # concat ÇÑ ¹ø¿¡ Ã³¸®
+        # concat í•œ ë²ˆì— ì²˜ë¦¬
         edge_features = torch.cat([h_src, h_dst, edge_attr], dim=1)
         
-        # MLP·Î ÃÖÁ¾ »ç±â È®·ü ·ÎÁş °è»ê
+        # MLPë¡œ ìµœì¢… ì‚¬ê¸° í™•ë¥  ë¡œì§“ ê³„ì‚°
         edge_logits = self.edge_mlp(edge_features).squeeze(-1)
         
         return edge_logits
 
 
 class EdgeGATLightweight(nn.Module):
-    """´õ °¡º­¿î ¹öÀü - ¼º´É vs ¼Óµµ Æ®·¹ÀÌµå¿ÀÇÁ"""
+    """ë” ê°€ë²¼ìš´ ë²„ì „ - ì„±ëŠ¥ vs ì†ë„ íŠ¸ë ˆì´ë“œì˜¤í”„"""
     def __init__(self, node_feat_dim, edge_feat_dim, hidden_channels=32, heads=2):
         super().__init__()
         
@@ -372,7 +372,7 @@ class EdgeGATLightweight(nn.Module):
         
         self.norm = nn.BatchNorm1d(hidden_channels * heads)
         
-        # ¸Å¿ì °£´ÜÇÑ MLP
+        # ë§¤ìš° ê°„ë‹¨í•œ MLP
         self.edge_mlp = nn.Sequential(
             nn.Linear(hidden_channels * heads * 2 + edge_feat_dim, hidden_channels),
             nn.ReLU(inplace=True),
@@ -393,13 +393,12 @@ class EdgeGATLightweight(nn.Module):
         return self.edge_mlp(edge_features).squeeze(-1)
 
 
-# È£È¯¼º À¯Áö
+# í˜¸í™˜ì„± ìœ ì§€
 EdgeGAT = EdgeGATOptimized
 GATImproved = EdgeGATOptimized
 
 
 ## train.py
-
 import os
 import torch
 import torch.nn.functional as F
@@ -432,16 +431,16 @@ class FocalLoss(torch.nn.Module):
         else:
             return loss
 
-# --------- Top-K Æò°¡ ÇÔ¼ö ----------
+# --------- Top-K í‰ê°€ í•¨ìˆ˜ ----------
 def precision_at_k(y_true, y_pred_proba, k):
-    """Precision@K °è»ê"""
+    """Precision@K ê³„ì‚°"""
     if len(y_true) < k:
         k = len(y_true)
     top_k_idx = np.argsort(y_pred_proba)[::-1][:k]
     return np.sum(y_true[top_k_idx]) / k
 
 def recall_at_k(y_true, y_pred_proba, k):
-    """Recall@K °è»ê"""
+    """Recall@K ê³„ì‚°"""
     if len(y_true) < k:
         k = len(y_true)
     top_k_idx = np.argsort(y_pred_proba)[::-1][:k]
@@ -451,16 +450,16 @@ def recall_at_k(y_true, y_pred_proba, k):
     return np.sum(y_true[top_k_idx]) / total_positive
 
 def threshold_at_k(y_true, y_pred_proba, k):
-    """Threshold@K °è»ê - »óÀ§ K¹øÂ° »ùÇÃÀÇ È®·ü°ª ¹İÈ¯"""
+    """Threshold@K ê³„ì‚° - ìƒìœ„ Kë²ˆì§¸ ìƒ˜í”Œì˜ í™•ë¥ ê°’ ë°˜í™˜"""
     if len(y_true) < k:
         k = len(y_true)
     top_k_idx = np.argsort(y_pred_proba)[::-1][:k]
-    threshold_index = top_k_idx[-1]  # K¹øÂ° ÀÎµ¦½º
+    threshold_index = top_k_idx[-1]  # Kë²ˆì§¸ ì¸ë±ìŠ¤
     threshold = y_pred_proba[threshold_index]
     return threshold
 
 def f1_score_at_k(y_true, y_pred_proba, k):
-    """F1-Score@K °è»ê"""
+    """F1-Score@K ê³„ì‚°"""
     precision_k = precision_at_k(y_true, y_pred_proba, k)
     recall_k = recall_at_k(y_true, y_pred_proba, k)
     
@@ -470,35 +469,23 @@ def f1_score_at_k(y_true, y_pred_proba, k):
     f1_k = 2 * (precision_k * recall_k) / (precision_k + recall_k)
     return f1_k
 
-# --------- ÇÏÀÌÆÛÆÄ¶ó¹ÌÅÍ ¼³Á¤ ----------
+# --------- í•˜ì´í¼íŒŒë¼ë¯¸í„° ì„¤ì • ----------
 batch_size = 1024
 lr = 0.01
 epoch_val = 30
 patience = 3
+
 k = 150
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-print(f"Device: {device}")
+print(f" Device: {device}")
 
-# --------- µ¥ÀÌÅÍ ·Îµù ----------
+# --------- ë°ì´í„° ë¡œë”© ----------
 dataset = AMLtoGraph("./lej_dataset_002")
 train_loader = DataLoader([dataset.data_train], batch_size=batch_size, shuffle=True)
 val_loader = DataLoader([dataset.data_val], batch_size=batch_size)
 
-# µ¥ÀÌÅÍ Á¤º¸ Ãâ·Â
-print(f"\nTrain data info:")
-print(f"  Nodes: {dataset.data_train.x.shape[0]}, Node features: {dataset.data_train.x.shape[1]}")
-print(f"  Edges: {dataset.data_train.edge_index.shape[1]}, Edge features: {dataset.data_train.edge_attr.shape[1]}")
-print(f"  Edge labels: {dataset.data_train.y.shape[0]}")
-print(f"  Fraud ratio: {dataset.data_train.y.mean():.4f}")
-
-print(f"\nVal data info:")
-print(f"  Nodes: {dataset.data_val.x.shape[0]}, Node features: {dataset.data_val.x.shape[1]}")
-print(f"  Edges: {dataset.data_val.edge_index.shape[1]}, Edge features: {dataset.data_val.edge_attr.shape[1]}")
-print(f"  Edge labels: {dataset.data_val.y.shape[0]}")
-print(f"  Fraud ratio: {dataset.data_val.y.mean():.4f}")
-
-# --------- ¸ğµ¨ ÃÊ±âÈ­ ----------
+# --------- ëª¨ë¸ ë° Optimizer ----------
 model = EdgeGAT(
     node_feat_dim=dataset.data_train.x.shape[1],
     edge_feat_dim=dataset.data_train.edge_attr.shape[1],
@@ -506,111 +493,87 @@ model = EdgeGAT(
     heads=4
 ).to(device)
 
-print(f"\n¸ğµ¨ ÆÄ¶ó¹ÌÅÍ ¼ö: {sum(p.numel() for p in model.parameters() if p.requires_grad):,}")
-
-# --------- ÇĞ½À ¼³Á¤ ----------
-print("\n¸ğµ¨ ÇĞ½À ½ÃÀÛ")
+print("\n ëª¨ë¸ í•™ìŠµ ì‹œì‘")
 loss_fn = FocalLoss(alpha=0.95, gamma=1, reduction='mean').to(device)
 optimizer = torch.optim.Adam(model.parameters(), lr=lr, weight_decay=1e-4)
 scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode="max", factor=0.5, patience=2)
 
 best_f1 = 0
 patience_counter = 0
+model_saved = False  # ëª¨ë¸ ì €ì¥ ì—¬ë¶€ ì¶”ì 
 
-# --------- ÇĞ½À ·çÇÁ ----------
+# --------- í•™ìŠµ ë£¨í”„ ----------
 for epoch in range(epoch_val):
-    # ===== ÇĞ½À =====
     model.train()
     total_loss = 0
-    train_preds, train_labels = [], []
-    
     for data in train_loader:
         data = data.to(device)
         optimizer.zero_grad()
-        
-        # Edge classification: ¸ğµ¨ÀÌ ¿§Áöº° ·ÎÁş ¹İÈ¯
-        edge_logits = model(data.x, data.edge_index, data.edge_attr)
-        
-        # Loss °è»ê (¿§Áöº° ¶óº§°ú ºñ±³)
-        loss = loss_fn(edge_logits, data.y)
+        out = model(data.x, data.edge_index, data.edge_attr)
+        loss = loss_fn(out, data.y)
         loss.backward()
         optimizer.step()
-        
         total_loss += loss.item()
-        
-        # ÇĞ½À ¼º´É ÃßÀû¿ë
-        train_preds.extend(torch.sigmoid(edge_logits).detach().cpu().numpy())
-        train_labels.extend(data.y.cpu().numpy())
 
-    # ===== °ËÁõ =====
+    # --------- ê²€ì¦ ----------
     model.eval()
-    val_preds, val_labels = [], []
-    val_loss = 0
-    
+    preds, labels = [], []
     with torch.no_grad():
         for data in val_loader:
             data = data.to(device)
-            edge_logits = model(data.x, data.edge_index, data.edge_attr)
-            
-            # °ËÁõ loss
-            loss = loss_fn(edge_logits, data.y)
-            val_loss += loss.item()
-            
-            # ¿¹Ãø°ª ¼öÁı
-            val_preds.extend(torch.sigmoid(edge_logits).cpu().numpy())
-            val_labels.extend(data.y.cpu().numpy())
+            out = model(data.x, data.edge_index, data.edge_attr)
+            preds.extend(torch.sigmoid(out).cpu().numpy())
+            labels.extend(data.y.cpu().numpy())
 
-    # ===== ¸ŞÆ®¸¯ °è»ê =====
-    train_preds = np.array(train_preds)
-    train_labels = np.array(train_labels)
-    val_preds = np.array(val_preds)
-    val_labels = np.array(val_labels)
-    
-    # ÀÌÁø ºĞ·ù ¸ŞÆ®¸¯ (threshold = 0.5)
-    val_bin_preds = (val_preds > 0.5).astype(int)
-    
-    val_f1 = f1_score(val_labels, val_bin_preds, zero_division=0)
-    val_precision = precision_score(val_labels, val_bin_preds, zero_division=0)
-    val_recall = recall_score(val_labels, val_bin_preds, zero_division=0)
-    val_roc = roc_auc_score(val_labels, val_preds) if len(np.unique(val_labels)) > 1 else 0
+    preds = np.array(preds)
+    labels = np.array(labels)
+    bin_preds = (preds > 0.5).astype(int)
 
-    # Top-K ¸ŞÆ®¸¯
-    val_precision_k = precision_at_k(val_labels, val_preds, k)
-    val_recall_k = recall_at_k(val_labels, val_preds, k)
-    val_threshold_k = threshold_at_k(val_labels, val_preds, k)
-    val_f1_k = f1_score_at_k(val_labels, val_preds, k)
+    # ê¸°ë³¸ ì´ì§„ ë¶„ë¥˜ ì§€í‘œ
+    f1 = f1_score(labels, bin_preds)
+    precision = precision_score(labels, bin_preds)
+    recall = recall_score(labels, bin_preds)
+    roc = roc_auc_score(labels, preds)
 
-    # Scheduler ¾÷µ¥ÀÌÆ®
-    scheduler.step(val_f1)
+    # Top-K ì§€í‘œë“¤
+    precision_k = precision_at_k(labels, preds, k)
+    recall_k = recall_at_k(labels, preds, k)
+    threshold_k = threshold_at_k(labels, preds, k)
+    f1_k = f1_score_at_k(labels, preds, k)
 
-    # ===== °á°ú Ãâ·Â =====
-    print(f"\nEpoch {epoch:02d}")
-    print(f"Train Loss: {total_loss:.4f}, Val Loss: {val_loss:.4f}")
-    print(f"Val Binary - Precision: {val_precision:.4f}, Recall: {val_recall:.4f}, F1: {val_f1:.4f}, ROC-AUC: {val_roc:.4f}")
-    print(f"Val Top-{k} - Precision@{k}: {val_precision_k:.4f}, Recall@{k}: {val_recall_k:.4f}, F1@{k}: {val_f1_k:.4f}, Threshold@{k}: {val_threshold_k:.4f}")
+    scheduler.step(f1)
 
-    # ===== ¸ğµ¨ ÀúÀå ¹× Early Stopping =====
-    if val_f1 > best_f1:
-        best_f1 = val_f1
+    print(f"Epoch {epoch:02d} | Loss: {total_loss:.4f}")
+    print(f"bnry values - Precision: {precision:.4f}, Recall: {recall:.4f}, F1: {f1:.4f}, ROC-AUC: {roc:.4f}")
+    print(f"topK values - Precision@{k}: {precision_k:.4f}, Recall@{k}: {recall_k:.4f}, F1@{k}: {f1_k:.4f}, Threshold@{k}: {threshold_k:.4f}")
+
+    if f1 > best_f1:
+        best_f1 = f1
         patience_counter = 0
-        
-        # ¸ğµ¨°ú ¿¹Ãø °á°ú ÀúÀå
         torch.save(model.state_dict(), "best_edge_model.pth")
-        np.save("val_preds.npy", val_preds)
-        np.save("val_labels.npy", val_labels)
-        
-        print(f"*** Best model saved! (F1: {best_f1:.4f}) ***")
+        np.save("val_preds.npy", preds)
+        np.save("val_labels.npy", labels)
+        model_saved = True  # ì €ì¥ ì„±ê³µ í‘œì‹œ
+
+        print("Best model and predictions saved.")
     else:
         patience_counter += 1
         if patience_counter >= patience:
             print("Early stopping triggered.")
             break
 
-print(f"\nÇĞ½À ¿Ï·á! Best F1: {best_f1:.4f}")
+print(f"\ní•™ìŠµ ì™„ë£Œ! Best F1: {best_f1:.4f}")
 
-# ===== Å×½ºÆ® Æò°¡ =====
-print("\n=== Å×½ºÆ® Æò°¡ ½ÃÀÛ ===")
-model.load_state_dict(torch.load("best_edge_model.pth"))
+# ===== í…ŒìŠ¤íŠ¸ í‰ê°€ =====
+print("\n=== í…ŒìŠ¤íŠ¸ í‰ê°€ ì‹œì‘ ===")
+
+# ëª¨ë¸ ë¡œë”© - ì•ˆì „í•˜ê²Œ ì²˜ë¦¬
+if model_saved and os.path.exists("best_edge_model.pth"):
+    model.load_state_dict(torch.load("best_edge_model.pth"))
+    print("ì €ì¥ëœ ìµœê³  ëª¨ë¸ ë¡œë”© ì™„ë£Œ")
+else:
+    print("ì €ì¥ëœ ëª¨ë¸ì´ ì—†ì–´ì„œ í˜„ì¬ ëª¨ë¸ë¡œ í…ŒìŠ¤íŠ¸í•©ë‹ˆë‹¤")
+
 model.eval()
 
 test_loader = DataLoader([dataset.data_test], batch_size=batch_size)
@@ -619,35 +582,34 @@ test_preds, test_labels = [], []
 with torch.no_grad():
     for data in test_loader:
         data = data.to(device)
-        edge_logits = model(data.x, data.edge_index, data.edge_attr)
-        test_preds.extend(torch.sigmoid(edge_logits).cpu().numpy())
+        out = model(data.x, data.edge_index, data.edge_attr)
+        test_preds.extend(torch.sigmoid(out).cpu().numpy())
         test_labels.extend(data.y.cpu().numpy())
 
 test_preds = np.array(test_preds)
 test_labels = np.array(test_labels)
 
-# Å×½ºÆ® ¸ŞÆ®¸¯ °è»ê
+# í…ŒìŠ¤íŠ¸ ë©”íŠ¸ë¦­ ê³„ì‚°
 test_bin_preds = (test_preds > 0.5).astype(int)
 
-test_f1 = f1_score(test_labels, test_bin_preds, zero_division=0)
-test_precision = precision_score(test_labels, test_bin_preds, zero_division=0)
-test_recall = recall_score(test_labels, test_bin_preds, zero_division=0)
-test_roc = roc_auc_score(test_labels, test_preds) if len(np.unique(test_labels)) > 1 else 0
+test_f1 = f1_score(test_labels, test_bin_preds)
+test_precision = precision_score(test_labels, test_bin_preds)
+test_recall = recall_score(test_labels, test_bin_preds)
+test_roc = roc_auc_score(test_labels, test_preds)
 
 test_precision_k = precision_at_k(test_labels, test_preds, k)
 test_recall_k = recall_at_k(test_labels, test_preds, k)
 test_threshold_k = threshold_at_k(test_labels, test_preds, k)
 test_f1_k = f1_score_at_k(test_labels, test_preds, k)
 
-print(f"\n=== ÃÖÁ¾ Å×½ºÆ® °á°ú ===")
+print(f"\n=== ìµœì¢… í…ŒìŠ¤íŠ¸ ê²°ê³¼ ===")
 print(f"Test data info:")
 print(f"  Edges: {len(test_labels)}")
 print(f"  Fraud ratio: {test_labels.mean():.4f}")
 print(f"Test Binary - Precision: {test_precision:.4f}, Recall: {test_recall:.4f}, F1: {test_f1:.4f}, ROC-AUC: {test_roc:.4f}")
 print(f"Test Top-{k} - Precision@{k}: {test_precision_k:.4f}, Recall@{k}: {test_recall_k:.4f}, F1@{k}: {test_f1_k:.4f}, Threshold@{k}: {test_threshold_k:.4f}")
 
-# ÃÖÁ¾ °á°ú ÀúÀå
+# ìµœì¢… ê²°ê³¼ ì €ì¥
 np.save("test_preds.npy", test_preds)
 np.save("test_labels.npy", test_labels)
-print("\nÅ×½ºÆ® ¿¹Ãø °á°ú ÀúÀå ¿Ï·á!")
-
+print("\ní…ŒìŠ¤íŠ¸ ì˜ˆì¸¡ ê²°ê³¼ ì €ì¥ ì™„ë£Œ!")
