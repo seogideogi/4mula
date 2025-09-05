@@ -114,72 +114,64 @@ X_test['degree_dps']  = X_test['dps_fc_ac'].map(degree_map).fillna(0)
 
 ###### GAT와 동일한 금액대별 1% 샘플링 ######
 
-def sample_data_gat_style(X, y, verbose=False):
+def sample_data(df, verbose=False, clf=''):
     """
-    GAT의 sample_data 메서드와 동일한 금액대별 1% 샘플링 로직
-    정상 거래는 1%씩 샘플링하고, 사기 거래는 정상과 개수를 맞춤
+    GAT 최종 샘플링: 정상 거래 1% 샘플링, 사기 거래는 정상과 개수 맞춤
     """
-    print("금액대별 1% 샘플링 (정상 중심 + 사기 오버샘플링) 시작")
+    print(clf + "샘플링 시작")
     
-    # X와 y를 합쳐서 DataFrame으로 만들기 (GAT 코드와 동일한 구조)
-    df_local = pd.concat([X.reset_index(drop=True), y.reset_index(drop=True)], axis=1)
+    def print_graph_stats(df_part, label=""):
+        G = nx.Graph()
+        for _, row in df_part.iterrows():
+            G.add_edge(row['wd_fc_ac'], row['dps_fc_ac'], weight=row['tran_amt'])
+        print(f"[{label}] 노드 수: {G.number_of_nodes()}, 엣지 수: {G.number_of_edges()}")
     
-    # GAT와 동일한 금액 구간 설정
-    bins = [0, 1_000, 10_000, 50_000, 100_000, 500_000, 1_000_000, np.inf]
-    labels = ['<1K', '1K-10K', '10K-50K', '50K-100K', '100K-500K', '500K-1M', '>1M']
-    df_local['amt_bin'] = pd.cut(df_local['tran_amt'], bins=bins, labels=labels, include_lowest=True)
+    normal_data = df[df['ff_sp_ai'] == 0]
+    fraud_data = df[df['ff_sp_ai'] == 1]
+    print(f"{clf} 원래 정상 거래 수: {len(normal_data)}, 사기 거래 수: {len(fraud_data)}")
     
-    all_samples = []
+    # 정상 거래 1% 샘플링
+    normal_sampled = normal_data.sample(frac=0.01, random_state=42)
     
-    for bin_label in labels:
-        bin_df = df_local[df_local['amt_bin'] == bin_label]
-        normal = bin_df[bin_df[target] == 0]  # target 변수명 사용
-        fraud  = bin_df[bin_df[target] == 1]
-        
-        # 정상 거래 샘플링 (1%)
-        n_normal_sample = int(len(normal) * 0.01)
-        if n_normal_sample > 0:
-            normal_sampled = normal.sample(n=n_normal_sample, random_state=42)
-        else:
-            normal_sampled = normal.iloc[0:0]
-        
-        # 사기 거래 복원 샘플링 → 정상과 개수를 맞춤
-        if len(normal_sampled) > 0 and len(fraud) > 0:
-            fraud_sampled = resample(
-                fraud,
-                replace=True,
-                n_samples=len(normal_sampled),
-                random_state=42
-            )
-        else:
-            fraud_sampled = fraud.iloc[0:0]
-        
-        bin_sampled = pd.concat([normal_sampled, fraud_sampled], ignore_index=True)
-        all_samples.append(bin_sampled)
-        
-        print(f"[{bin_label}] 정상 {len(normal_sampled)} / 사기 {len(fraud_sampled)}")
+    # 사기 거래는 정상과 동일한 개수로 복원 샘플링
+    fraud_sampled = resample(fraud_data, replace=True, n_samples=len(normal_sampled), random_state=42)
     
-    df_sampled = pd.concat(all_samples, ignore_index=True).sample(frac=1, random_state=42)
+    # 합치고 셔플
+    df_sampled = pd.concat([normal_sampled, fraud_sampled], ignore_index=True).sample(frac=1, random_state=42)
     
-    # amt_bin 컬럼 제거
-    df_sampled = df_sampled.drop('amt_bin', axis=1)
+    print(f"{clf} 샘플링 후 정상 거래 수: {len(normal_sampled)}, 사기 거래 수: {len(fraud_sampled)}")
     
-    # X와 y로 다시 분리
-    X_resampled = df_sampled.drop(target, axis=1)
-    y_resampled = df_sampled[target]
+    if verbose:
+        print_graph_stats(df, "샘플링 전 전체 데이터")
+        print_graph_stats(df_sampled, "샘플링 후 전체 데이터")
     
-    return X_resampled, y_resampled
+    return df_sampled
 
 ## GAT 스타일 샘플링 적용 ##
-print("=== GAT 스타일 금액대별 1% 샘플링 수행 ===")
+print("=== GAT 스타일 1% 샘플링 수행 ===")
 
 # 훈련 데이터 샘플링
+# 훈련 데이터 샘플링 (X_train, y_train을 다시 합쳐서 처리)
 print("[훈련 데이터]")
-X_resampled_tr, y_resampled_tr = sample_data_gat_style(X_train, y_train, verbose=True)
+df_train_combined = pd.concat([X_train, y_train], axis=1)
+df_sampled_tr = sample_data(df_train_combined, verbose=True, clf="[훈련] ")
+X_resampled_tr = df_sampled_tr.drop('ff_sp_ai', axis=1)
+y_resampled_tr = df_sampled_tr['ff_sp_ai']
 
-# 검증 데이터 샘플링  
+# 검증 데이터 샘플링
 print("[검증 데이터]")
-X_resampled_val, y_resampled_val = sample_data_gat_style(X_val, y_val, verbose=True)
+df_val_combined = pd.concat([X_val, y_val], axis=1)
+df_sampled_val = sample_data(df_val_combined, verbose=True, clf="[검증] ")
+X_resampled_val = df_sampled_val.drop('ff_sp_ai', axis=1)
+y_resampled_val = df_sampled_val['ff_sp_ai']
+
+# 검증 데이터 샘플링
+print("[테스트 데이터]")
+df_val_combined = pd.concat([X_test, y_test], axis=1)
+df_sampled_test = sample_data(df_test_combined, verbose=True, clf="[테스트] ")
+X_resampled_test = df_sampled_test.drop('ff_sp_ai', axis=1)
+y_resampled_test = df_sampled_test['ff_sp_ai']
+
 
 ###### TopK 성능지표정의 ######
 
@@ -269,14 +261,14 @@ cbt_pred = cbt.predict(X_test)
 cbt_pred_proba = cbt.predict_proba(X_test)[:, 1]
 
 # 평가 지표 계산
-acc = round(accuracy_score(y_test, cbt_pred), 4)
-prec = round(precision_score(y_test, cbt_pred, zero_division=0), 4)
-rec = round(recall_score(y_test, cbt_pred), 4)
-f1 = round(f1_score(y_test, cbt_pred), 4)
-roc_auc = round(roc_auc_score(y_test, cbt_pred_proba), 4)
+acc = round(accuracy_score(y_resampled_test, cbt_pred), 4)
+prec = round(precision_score(y_resampled_test, cbt_pred, zero_division=0), 4)
+rec = round(recall_score(y_resampled_test, cbt_pred), 4)
+f1 = round(f1_score(y_resampled_test, cbt_pred), 4)
+roc_auc = round(roc_auc_score(y_resampled_test, cbt_pred_proba), 4)
 
 # 혼동 행렬 계산
-tn, fp, fn, tp = confusion_matrix(y_test, cbt_pred).ravel()
+tn, fp, fn, tp = confusion_matrix(y_resampled_test, cbt_pred).ravel()
 
 # FPR 계산
 fpr = round(fp / (fp + tn), 6)
@@ -290,7 +282,7 @@ print("Accuracy", acc, "\n",
       "FPR", fpr)
 
 ## 교차표 시각화 ##
-cbt_cm = confusion_matrix(y_test, cbt_pred)
+cbt_cm = confusion_matrix(y_resampled_test, cbt_pred)
 group_names = ["TN", "FP", "FN", "TP"]
 group_counts = [value for value in cbt_cm.flatten()]
 group_percentages = [f"{value: .4%}" for value in cbt_cm.flatten() / np.sum(cbt_cm)]
@@ -308,10 +300,10 @@ results = []
 k_list = [30, 150, 300, 600, 900, 1200, 1500, 1800, 2100, 2400, 2700, 3000]
 
 for k in k_list:
-    thresh_k = round(threshold_at_k(y_test, cbt_pred_proba, k), 4)
-    prec_k = round(precision_at_k(y_test, cbt_pred_proba, k), 4)
-    rec_k = round(recall_at_k(y_test, cbt_pred_proba, k), 4)
-    f1_k = round(f1_score_at_k(y_test, cbt_pred_proba, k), 4)
+    thresh_k = round(threshold_at_k(y_resampled_test, cbt_pred_proba, k), 4)
+    prec_k = round(precision_at_k(y_resampled_test, cbt_pred_proba, k), 4)
+    rec_k = round(recall_at_k(y_resampled_test, cbt_pred_proba, k), 4)
+    f1_k = round(f1_score_at_k(y_resampled_test, cbt_pred_proba, k), 4)
 
     results.append({'k': k, 'thresh': thresh_k, 'pre_at_k': prec_k, 'rec_at_k': rec_k, 'f1_at_k': f1_k})
 
