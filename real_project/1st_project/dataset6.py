@@ -1,0 +1,88 @@
+import datetime
+import os
+from typing import Optional, Callable
+import pandas as pd
+import numpy as np
+import torch
+import networkx as nx
+from torch_geometric.data import Data, InMemoryDataset
+from sklearn.preprocessing import MinMaxScaler
+from sklearn.utils import resample
+import warnings
+import matplotlib.pyplot as plt
+import seaborn as sns
+from sklearn.metrics import precision_score, recall_score
+
+warnings.filterwarnings('ignore')
+pd.set_option('display.max_columns', None)
+
+# GPU 설정
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+print(f" Using device: {device}")
+
+# -------------------
+# 1. 데이터 로딩 클래스
+# -------------------
+class AMLtoGraph(InMemoryDataset):
+    def __init__(self, root: str, edge_window_size: int = 10,
+                 transform: Optional[Callable] = None,
+                 pre_transform: Optional[Callable] = None):
+        self.edge_window_size = edge_window_size
+        super().__init__(root, transform, pre_transform)
+        self.data_train, _, self.data_val, _, self.data_test, _ = torch.load(self.processed_paths[0])
+
+    @property
+    def raw_file_names(self) -> str:
+        return 'HF_TRNS_TRAN_new.csv'
+
+    @property
+    def processed_file_names(self) -> str:
+        return 'data.pt'
+
+    def preprocess(self, df):
+        df.fillna('00', inplace=True)
+        df['ff_sp_ai'] = df['ff_sp_ai'].apply(lambda x: 1 if x == 'SP' else 0)
+        df = df[df["tran_amt"] >= 10000]
+        df["tran_dt"] = pd.to_datetime(df["tran_dt"], format="%Y%m%d")
+        train_df = df[(df['tran_dt'].dt.year < 2023) | ((df['tran_dt'].dt.year == 2023) & (df['tran_dt'].dt.month <= 10))]
+        val_df = df[(df['tran_dt'].dt.year == 2023) & (df['tran_dt'].dt.month == 11)]
+        test_df = df[(df['tran_dt'].dt.year == 2023) & (df['tran_dt'].dt.month > 11)]
+        scaler = MinMaxScaler()
+        train_df['tran_dt'] = scaler.fit_transform(train_df[['tran_dt']])
+        val_df['tran_dt'] = scaler.transform(val_df[['tran_dt']])
+        test_df['tran_dt'] = scaler.transform(test_df[['tran_dt']])
+        return train_df, val_df, test_df
+
+    def sample_data(self, df):
+        normal_data = df[df['ff_sp_ai'] == 0]
+        fraud_data = df[df['ff_sp_ai'] == 1]
+        normal_data_sampled = normal_data.sample(frac=0.3, random_state=42)
+        fraud_data_sampled = resample(fraud_data, replace=True if len(normal_data_sampled) > len(fraud_data) else False, 
+                                      n_samples=len(normal_data_sampled), random_state=42)
+        return pd.concat([normal_data_sampled, fraud_data_sampled]).sample(frac=1, random_state=42).reset_index(drop=True)
+
+    def get_edge_df(self, df):
+        df['wd_fc_ac'] = df['wd_fc_ac'].astype('category').cat.codes
+        df['dps_fc_ac'] = df['dps_fc_ac'].astype('category').cat.codes
+        edge_index = torch.tensor([df['wd_fc_ac'].values, df['dps_fc_ac'].values], dtype=torch.long)
+        edge_attr = torch.tensor(df[['tran_amt', 'tran_dt', 'tran_tmrg']].values, dtype=torch.float)
+        return edge_attr, edge_index
+
+    def get_node_attr(self, df):
+        node_attr = torch.tensor(df[["tran_dt", "tran_amt", "tran_tmrg"]].values, dtype=torch.float)
+        node_label = torch.tensor(df['ff_sp_ai'].values, dtype=torch.float)
+        return node_attr, node_label
+
+    def process(self):
+        df = pd.read_csv(self.raw_paths[0])
+        train_df, val_df, test_df = self.preprocess(df)
+        datasets = {'train': train_df, 'val': val_df, 'test': test_df}
+        processed_data = {key: self.create_graph_data(self.sample_data(df)) for key, df in datasets.items()}
+        torch.save((processed_data['train'], torch.tensor([]),
+                    processed_data['val'], torch.tensor([]),
+                    processed_data['test'], torch.tensor([])), self.processed_paths[0])
+
+    def create_graph_data(self, df):
+        edge_attr, edge_index = self.get_edge_df(df)
+        node_attr, node_label = self.get_node_attr(df)
+        return Data(x=node_attr, edge_index=edge_index, edge_attr=edge_attr, y=node_label)
