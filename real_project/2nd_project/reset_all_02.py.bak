@@ -320,7 +320,7 @@ for epoch in range(epoch_val):
     for data in train_loader:
         data = data.to(device)
         optimizer.zero_grad()
-        out = model(data.x, data.edge_index, data.edge_attr)
+        out = model(data.x, data.edge_index, data.edge_attr)  #EdgeGAT 출력
         loss = loss_fn(out, data.y)
         loss.backward()
         optimizer.step()
