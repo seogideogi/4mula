@@ -20,6 +20,9 @@ from sklearn.metrics import roc_curve, roc_auc_score, make_scorer, confusion_mat
 ###### 데이터 불러오기 #######
 df = pd.read_csv('hf_trns_tran_new_12norm.csv', dtype={'ff_sp_ai': str})
 
+## 10,000 이하 잘라내고
+df = df[df["tran_amt"] >= 10000 ]
+
 # 날짜 컬럼을 문자열 → datetime으로 변환
 df['tran_dt'] = pd.to_datetime(df['tran_dt'].astype(str), format='%Y%m%d')
 
@@ -51,14 +54,14 @@ features = ['wd_fc_ac', 'dps_fc_ac', 'md_type', 'fnd_type', 'tran_amt',
 target = 'ff_sp_ai'
 
 # 월 기준 split
-X_train = df.loc[(df['month'] >= 1) & (df['month'] <= 10), features].copy()
-y_train = df.loc[(df['month'] >= 1) & (df['month'] <= 10), target].copy()
+X_train = df.loc[(df['month'] >= 1) & (df['month'] <= 10), features]
+y_train = df.loc[(df['month'] >= 1) & (df['month'] <= 10), target]
 
-X_val = df.loc[df['month'] == 11, features].copy()
-y_val = df.loc[df['month'] == 11, target].copy()
+X_val = df.loc[df['month'] == 11, features]
+y_val = df.loc[df['month'] == 11, target]
 
-X_test = df.loc[df['month'] == 12, features].copy()
-y_test = df.loc[df['month'] == 12, target].copy()
+X_test = df.loc[df['month'] == 12, features]
+y_test = df.loc[df['month'] == 12, target]
 
 print("훈련데이터: ", X_train.shape, y_train.shape)
 print("검증데이터: ", X_val.shape, y_val.shape)
@@ -83,12 +86,12 @@ def detect_communities(df_feat):
         G.add_edge(row['wd_fc_ac'], row['dps_fc_ac'], weight=row['tran_amt'])
 
     communities = community.louvain_communities(G, weight='weight')
-    community_map_local = {}
+    community_map = {}
     for idx, nodes in enumerate(communities):
         for node in nodes:
-            community_map_local[node] = idx
+            community_map[node] = idx
 
-    return community_map_local
+    return community_map
 
 # 커뮤니티 피처를 기존 데이터에 추가 (GAT와 동일: dps_fc_ac 기준 매핑)
 community_map = detect_communities(X_train)
@@ -257,8 +260,8 @@ plt.legend()
 plt.show()
 
 ###### 예측 수행 ######
-cbt_pred = cbt.predict(X_test)
-cbt_pred_proba = cbt.predict_proba(X_test)[:, 1]
+cbt_pred = cbt.predict(X_resampled_test)
+cbt_pred_proba = cbt.predict_proba(X_resampled_test)[:, 1]
 
 # 평가 지표 계산
 acc = round(accuracy_score(y_resampled_test, cbt_pred), 4)
